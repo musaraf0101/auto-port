@@ -1,6 +1,6 @@
 {
   "name": "auto-port",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Automatically detect port conflicts and start your app on the next available port",
   "type": "module",
   "bin": {
