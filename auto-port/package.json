@@ -1,0 +1,38 @@
+{
+  "name": "auto-port",
+  "version": "1.0.0",
+  "description": "Automatically detect port conflicts and start your app on the next available port",
+  "type": "module",
+  "bin": {
+    "auto-port": "./bin/auto-port.js",
+    "port-history": "./bin/port-history.js"
+  },
+  "files": [
+    "src",
+    "bin"
+  ],
+  "exports": "./src/index.js",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "keywords": [
+    "port",
+    "conflict",
+    "history",
+    "cli",
+    "dev",
+    "localhost",
+    "frontend",
+    "backend",
+    "vite",
+    "express"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "devDependencies": {
+    "vitest": "^1.6.0"
+  }
+}
