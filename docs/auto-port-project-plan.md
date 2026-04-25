@@ -1,4 +1,4 @@
-# auto-port — Project Plan
+# port-lister — Project Plan
 
 > npm package · fully local · zero runtime dependencies
 
@@ -6,15 +6,15 @@
 
 ## Overview
 
-`auto-port` is a CLI tool that automatically detects port conflicts and starts your app on the next available port — no manual `PORT=3001` juggling, no killing other processes. It works with **any frontend or backend framework** by wrapping any command and injecting the correct port variable automatically.
+`port-lister` is a CLI tool that automatically detects port conflicts and starts your app on the next available port — no manual `PORT=3001` juggling, no killing other processes. It works with **any frontend or backend framework** by wrapping any command and injecting the correct port variable automatically.
 
 ```bash
 # frontend
-npx auto-port npm start           # CRA, Vite, Next.js, Nuxt, SvelteKit...
+npx port-lister npm start           # CRA, Vite, Next.js, Nuxt, SvelteKit...
 # backend
-npx auto-port node server.js      # Express, Fastify, plain Node...
+npx port-lister node server.js      # Express, Fastify, plain Node...
 # non-Node
-npx auto-port python manage.py runserver
+npx port-lister python manage.py runserver
 
 # ⚠  Port 3000 in use → node (pid 4521)
 # ✓  Finding next available port...
@@ -26,14 +26,14 @@ npx auto-port python manage.py runserver
 
 ## Tech Stack
 
-| Tool | Purpose |
-|---|---|
-| Node.js ESM | Runtime |
-| `net` module | Port detection |
-| `child_process` | Spawn user command |
-| `node:os` | Cross-platform support |
-| Vitest | Unit testing |
-| GitHub Actions | CI / cross-platform testing |
+| Tool            | Purpose                     |
+| --------------- | --------------------------- |
+| Node.js ESM     | Runtime                     |
+| `net` module    | Port detection              |
+| `child_process` | Spawn user command          |
+| `node:os`       | Cross-platform support      |
+| Vitest          | Unit testing                |
+| GitHub Actions  | CI / cross-platform testing |
 
 **Zero runtime dependencies** — everything uses Node.js built-in modules.
 
@@ -42,7 +42,7 @@ npx auto-port python manage.py runserver
 ## Project Structure
 
 ```
-auto-port/
+port-lister/
 ├── src/
 │   ├── detect.js      ← is port busy?
 │   ├── finder.js      ← find next free port
@@ -50,11 +50,10 @@ auto-port/
 │   ├── whohas.js      ← what process owns the port
 │   ├── framework.js   ← detect framework + port injection strategy
 │   ├── history.js     ← read/write port history log
-│   ├── store.js       ← persistent JSON store (~/.auto-port/history.json)
+│   ├── store.js       ← persistent JSON store (~/.port-lister/history.json)
 │   └── index.js       ← public programmatic API
 ├── bin/
-│   ├── auto-port.js    ← CLI entry point
-│   └── port-history.js ← port-history sub-command
+│   └── port-lister.js    ← CLI entry point + --history sub-command
 ├── test/
 │   ├── detect.test.js
 │   ├── finder.test.js
@@ -71,9 +70,11 @@ auto-port/
 ---
 
 ## Phase 1 — Project Scaffold & Core Engine
+
 **Timeline: Week 1**
 
 ### Goals
+
 Build the fundamental detection and resolution engine with no external dependencies.
 
 ### Tasks
@@ -90,73 +91,75 @@ Build the fundamental detection and resolution engine with no external dependenc
 
 ```js
 // detect.js — check if a port is in use
-import net from 'node:net'
+import net from "node:net";
 
 export function isPortBusy(port) {
   return new Promise((resolve) => {
-    const server = net.createServer()
-    server.once('error', () => resolve(true))
-    server.once('listening', () => {
-      server.close()
-      resolve(false)
-    })
-    server.listen(port)
-  })
+    const server = net.createServer();
+    server.once("error", () => resolve(true));
+    server.once("listening", () => {
+      server.close();
+      resolve(false);
+    });
+    server.listen(port);
+  });
 }
 ```
 
 ```js
 // finder.js — find next free port
-import { isPortBusy } from './detect.js'
+import { isPortBusy } from "./detect.js";
 
 export async function findFreePort(start, max = 20) {
   for (let port = start; port <= start + max; port++) {
-    if (!(await isPortBusy(port))) return port
+    if (!(await isPortBusy(port))) return port;
   }
-  throw new Error(`No free port found in range ${start}–${start + max}`)
+  throw new Error(`No free port found in range ${start}–${start + max}`);
 }
 ```
 
 ---
 
 ## Phase 2 — CLI Interface & Port Injection
+
 **Timeline: Week 1–2**
 
 ### Goals
+
 Wrap the engine in a clean CLI that transparently spawns the user's command with the resolved port.
 
 ### Usage Patterns
 
 ```bash
 # frontend
-npx auto-port npm start                    # Create React App
-npx auto-port vite                         # Vite
-npx auto-port next dev                     # Next.js
-npx auto-port ng serve                     # Angular
-npx auto-port npm run dev                  # SvelteKit, Nuxt, Remix
+npx port-lister npm start                    # Create React App
+npx port-lister vite                         # Vite
+npx port-lister next dev                     # Next.js
+npx port-lister ng serve                     # Angular
+npx port-lister npm run dev                  # SvelteKit, Nuxt, Remix
 
 # backend
-npx auto-port node server.js               # Express / plain Node
-npx auto-port ts-node app.ts               # TypeScript
-npx auto-port python manage.py runserver   # Django
-npx auto-port go run main.go               # Go
+npx port-lister node server.js               # Express / plain Node
+npx port-lister ts-node app.ts               # TypeScript
+npx port-lister python manage.py runserver   # Django
+npx port-lister go run main.go               # Go
 
 # with flags
-npx auto-port --port 3000 yarn dev
-npx auto-port --range 3000-3010 node server.js
-npx auto-port --kill npm run dev
-npx auto-port --quiet vite
+npx port-lister --port 3000 yarn dev
+npx port-lister --range 3000-3010 node server.js
+npx port-lister --kill npm run dev
+npx port-lister --quiet vite
 ```
 
 ### CLI Flags
 
-| Flag | Description |
-|---|---|
-| `--port <n>` | Target port (default: reads from script or 3000) |
-| `--range <a-b>` | Search range for free port |
-| `--kill` | Kill the conflicting process instead of shifting |
-| `--quiet` | Suppress auto-port output, show only app output |
-| `--save` | Update `.env` file with the resolved port |
+| Flag            | Description                                       |
+| --------------- | ------------------------------------------------- |
+| `--port <n>`    | Target port (default: reads from script or 3000)  |
+| `--range <a-b>` | Search range for free port                        |
+| `--kill`        | Kill the conflicting process instead of shifting  |
+| `--quiet`       | Suppress port-lister output, show only app output |
+| `--save`        | Update `.env` file with the resolved port         |
 
 ### Tasks
 
@@ -170,25 +173,27 @@ npx auto-port --quiet vite
 
 ```js
 // runner.js — spawn command with injected PORT
-import { spawn } from 'node:child_process'
+import { spawn } from "node:child_process";
 
 export function run(command, args, port) {
   const child = spawn(command, args, {
-    stdio: 'inherit',
+    stdio: "inherit",
     env: { ...process.env, PORT: String(port) },
     shell: true,
-  })
-  process.on('SIGINT', () => child.kill('SIGINT'))
-  return child
+  });
+  process.on("SIGINT", () => child.kill("SIGINT"));
+  return child;
 }
 ```
 
 ---
 
 ## Phase 3 — Universal Framework Detection & Port Injection
+
 **Timeline: Week 2**
 
 ### Goals
+
 Auto-detect any frontend or backend framework and apply the correct port injection strategy — env var, CLI flag, or both — without any config from the user.
 
 ### The Problem
@@ -225,22 +230,22 @@ Record to port history
 
 ### Full Compatibility Table
 
-| Framework | Type | Strategy | Port variable / flag | Works? |
-|---|---|---|---|---|
-| Express | Backend | env var | `PORT` | ✅ |
-| Fastify | Backend | env var | `PORT` | ✅ |
-| plain Node.js | Backend | env var | `PORT` | ✅ |
-| Create React App | Frontend | env var | `PORT` | ✅ |
-| Next.js | Full stack | env var | `PORT` | ✅ |
-| Vite | Frontend | env var | `VITE_PORT` | ✅ |
-| Nuxt | Full stack | env var | `NUXT_PORT` | ✅ |
-| Remix | Full stack | env var | `PORT` | ✅ |
-| SvelteKit | Full stack | env var | `PORT` | ✅ |
-| Angular | Frontend | CLI flag | `--port` | ✅ |
-| Webpack DevServer | Frontend | CLI flag | `--port` | ✅ |
-| Django | Backend | env var | `PORT` | ✅ |
-| Go / Rust | Backend | env var | `PORT` | ✅ if app reads it |
-| Rails | Backend | CLI flag | `-p` | ⚠️ best effort |
+| Framework         | Type       | Strategy | Port variable / flag | Works?             |
+| ----------------- | ---------- | -------- | -------------------- | ------------------ |
+| Express           | Backend    | env var  | `PORT`               | ✅                 |
+| Fastify           | Backend    | env var  | `PORT`               | ✅                 |
+| plain Node.js     | Backend    | env var  | `PORT`               | ✅                 |
+| Create React App  | Frontend   | env var  | `PORT`               | ✅                 |
+| Next.js           | Full stack | env var  | `PORT`               | ✅                 |
+| Vite              | Frontend   | env var  | `VITE_PORT`          | ✅                 |
+| Nuxt              | Full stack | env var  | `NUXT_PORT`          | ✅                 |
+| Remix             | Full stack | env var  | `PORT`               | ✅                 |
+| SvelteKit         | Full stack | env var  | `PORT`               | ✅                 |
+| Angular           | Frontend   | CLI flag | `--port`             | ✅                 |
+| Webpack DevServer | Frontend   | CLI flag | `--port`             | ✅                 |
+| Django            | Backend    | env var  | `PORT`               | ✅                 |
+| Go / Rust         | Backend    | env var  | `PORT`               | ✅ if app reads it |
+| Rails             | Backend    | CLI flag | `-p`                 | ⚠️ best effort     |
 
 ### Tasks
 
@@ -256,30 +261,53 @@ Record to port history
 ```js
 // framework.js — detect framework and return injection strategy
 export function detectFramework(pkg) {
-  const deps = { ...pkg.dependencies, ...pkg.devDependencies }
+  const deps = { ...pkg.dependencies, ...pkg.devDependencies };
 
   // env var strategies
-  if (deps['vite'])            return { name: 'Vite',      strategy: 'env',  portVar: 'VITE_PORT',  default: 5173 }
-  if (deps['next'])            return { name: 'Next.js',   strategy: 'env',  portVar: 'PORT',        default: 3000 }
-  if (deps['react-scripts'])   return { name: 'CRA',       strategy: 'env',  portVar: 'PORT',        default: 3000 }
-  if (deps['nuxt'])            return { name: 'Nuxt',      strategy: 'env',  portVar: 'NUXT_PORT',   default: 3000 }
-  if (deps['@remix-run/node']) return { name: 'Remix',     strategy: 'env',  portVar: 'PORT',        default: 3000 }
-  if (deps['@sveltejs/kit'])   return { name: 'SvelteKit', strategy: 'env',  portVar: 'PORT',        default: 5173 }
+  if (deps["vite"])
+    return {
+      name: "Vite",
+      strategy: "env",
+      portVar: "VITE_PORT",
+      default: 5173,
+    };
+  if (deps["next"])
+    return { name: "Next.js", strategy: "env", portVar: "PORT", default: 3000 };
+  if (deps["react-scripts"])
+    return { name: "CRA", strategy: "env", portVar: "PORT", default: 3000 };
+  if (deps["nuxt"])
+    return {
+      name: "Nuxt",
+      strategy: "env",
+      portVar: "NUXT_PORT",
+      default: 3000,
+    };
+  if (deps["@remix-run/node"])
+    return { name: "Remix", strategy: "env", portVar: "PORT", default: 3000 };
+  if (deps["@sveltejs/kit"])
+    return {
+      name: "SvelteKit",
+      strategy: "env",
+      portVar: "PORT",
+      default: 5173,
+    };
 
   // CLI flag strategies
-  if (deps['@angular/core'])   return { name: 'Angular',   strategy: 'flag', flag: '--port',         default: 4200 }
-  if (deps['webpack'])         return { name: 'Webpack',   strategy: 'flag', flag: '--port',         default: 8080 }
+  if (deps["@angular/core"])
+    return { name: "Angular", strategy: "flag", flag: "--port", default: 4200 };
+  if (deps["webpack"])
+    return { name: "Webpack", strategy: "flag", flag: "--port", default: 8080 };
 
   // generic fallback — works for Express, Fastify, plain Node, Django, Go...
-  return { name: 'Generic', strategy: 'env', portVar: 'PORT', default: 3000 }
+  return { name: "Generic", strategy: "env", portVar: "PORT", default: 3000 };
 }
 
 // runner.js — apply strategy when spawning
 export function buildEnvAndArgs(command, args, port, framework) {
-  if (framework.strategy === 'flag') {
-    return { env: process.env, args: [...args, framework.flag, String(port)] }
+  if (framework.strategy === "flag") {
+    return { env: process.env, args: [...args, framework.flag, String(port)] };
   }
-  return { env: { ...process.env, [framework.portVar]: String(port) }, args }
+  return { env: { ...process.env, [framework.portVar]: String(port) }, args };
 }
 ```
 
@@ -287,17 +315,17 @@ export function buildEnvAndArgs(command, args, port, framework) {
 
 ```bash
 # Terminal 1 — backend already on 5000
-npx auto-port node server.js
+npx port-lister node server.js
 # ✅ Port 5000 free → starting normally
 
 # Terminal 2 — someone grabbed 3000
-npx auto-port vite
+npx port-lister vite
 # ⚠  Port 3000 in use → node (pid 4521)
 # ✅ Starting Vite on port 3002 (injected VITE_PORT=3002)
 # 🚀 http://localhost:3002
 
 # Later
-npx port-history
+npx port-lister --history
 # 5000 → api-server     1h ago  ● still running
 # 3002 → dashboard-app  1h ago  ● still running
 # 3000 → my-blog        3h ago  ○ stopped
@@ -306,36 +334,38 @@ npx port-history
 ---
 
 ## Phase 4 — Port History
+
 **Timeline: Week 2–3**
 
 ### Goals
+
 Automatically remember which project used which port, when it was last active, and whether it is still running — stored in a local JSON file, never sent anywhere.
 
 ### Usage
 
 ```bash
-npx port-history
+npx port-lister --history
 # PORT   PROJECT          LAST USED        STATUS
 # 3000   my-blog          2h ago           ● still running
 # 5173   dashboard-app    yesterday        ○ stopped
 # 8080   api-server       3 days ago       ○ stopped
 
-npx port-history --json
-npx port-history --clear
-npx port-history --forget 8080
+npx port-lister --history --json
+npx port-lister --history --clear
+npx port-lister --history --forget 8080
 ```
 
 ### How It Works
 
-Every time `auto-port` starts a project, it appends an entry to `~/.auto-port/history.json`. On each `port-history` read, it cross-references the stored PIDs against live system processes to determine if a project is still running.
+Every time `port-lister` starts a project, it appends an entry to `~/.port-lister/history.json`. On each `port-lister` read, it cross-references the stored PIDs against live system processes to determine if a project is still running.
 
 ```
-auto-port starts project
+port-lister starts project
         ↓
-Write entry to ~/.auto-port/history.json
+Write entry to ~/.port-lister/history.json
 { port, project, pid, cwd, startedAt }
         ↓
-npx port-history reads file
+npx port-lister --history reads file
         ↓
 Check each PID → still alive?
         ↓
@@ -345,7 +375,7 @@ Print table with status + relative time
 ### Storage Format
 
 ```json
-// ~/.auto-port/history.json
+// ~/.port-lister/history.json
 [
   {
     "port": 3000,
@@ -370,89 +400,89 @@ Print table with status + relative time
 
 Project name is resolved in this priority order:
 
-| Priority | Source | Example |
-|---|---|---|
-| 1 | `package.json` → `name` field | `"my-blog"` |
-| 2 | `package.json` → `name` (parent dir) | `"dashboard-app"` |
-| 3 | Current working directory name | `"api-server"` |
+| Priority | Source                               | Example           |
+| -------- | ------------------------------------ | ----------------- |
+| 1        | `package.json` → `name` field        | `"my-blog"`       |
+| 2        | `package.json` → `name` (parent dir) | `"dashboard-app"` |
+| 3        | Current working directory name       | `"api-server"`    |
 
 ### Core Logic
 
 ```js
-// store.js — read/write ~/.auto-port/history.json
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs'
-import { homedir } from 'node:os'
-import { join } from 'node:path'
+// store.js — read/write ~/.port-lister/history.json
+import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import { homedir } from "node:os";
+import { join } from "node:path";
 
-const STORE_DIR  = join(homedir(), '.auto-port')
-const STORE_FILE = join(STORE_DIR, 'history.json')
+const STORE_DIR = join(homedir(), ".port-lister");
+const STORE_FILE = join(STORE_DIR, "history.json");
 
 export function readHistory() {
   try {
-    return JSON.parse(readFileSync(STORE_FILE, 'utf8'))
+    return JSON.parse(readFileSync(STORE_FILE, "utf8"));
   } catch {
-    return []
+    return [];
   }
 }
 
 export function writeEntry(entry) {
-  mkdirSync(STORE_DIR, { recursive: true })
-  const history = readHistory().filter(e => e.port !== entry.port)
-  writeFileSync(STORE_FILE, JSON.stringify([entry, ...history], null, 2))
+  mkdirSync(STORE_DIR, { recursive: true });
+  const history = readHistory().filter((e) => e.port !== entry.port);
+  writeFileSync(STORE_FILE, JSON.stringify([entry, ...history], null, 2));
 }
 ```
 
 ```js
 // history.js — check if a recorded PID is still alive
-import { execSync } from 'node:child_process'
+import { execSync } from "node:child_process";
 
 export function isProcessAlive(pid) {
   try {
-    process.kill(pid, 0)   // signal 0 = existence check only
-    return true
+    process.kill(pid, 0); // signal 0 = existence check only
+    return true;
   } catch {
-    return false
+    return false;
   }
 }
 
 export function relativeTime(isoString) {
-  const diff = Date.now() - new Date(isoString).getTime()
-  const mins  = Math.floor(diff / 60000)
-  const hours = Math.floor(diff / 3600000)
-  const days  = Math.floor(diff / 86400000)
-  if (mins  < 60)  return `${mins}m ago`
-  if (hours < 24)  return `${hours}h ago`
-  return `${days}d ago`
+  const diff = Date.now() - new Date(isoString).getTime();
+  const mins = Math.floor(diff / 60000);
+  const hours = Math.floor(diff / 3600000);
+  const days = Math.floor(diff / 86400000);
+  if (mins < 60) return `${mins}m ago`;
+  if (hours < 24) return `${hours}h ago`;
+  return `${days}d ago`;
 }
 ```
 
 ### Tasks
 
-- [ ] `store.js` — read/write `~/.auto-port/history.json` using `node:fs`
-- [ ] Auto-write an entry every time `auto-port` successfully starts a project
+- [ ] `store.js` — read/write `~/.port-lister/history.json` using `node:fs`
+- [ ] Auto-write an entry every time `port-lister` successfully starts a project
 - [ ] `history.js` — resolve project name from `package.json` or directory name
 - [ ] `isProcessAlive(pid)` — use `process.kill(pid, 0)` for cross-platform alive check
 - [ ] `relativeTime()` — human-readable time since last use
-- [ ] `bin/port-history.js` — CLI that prints the formatted table
-- [ ] `--json` flag — output raw JSON for scripting
-- [ ] `--clear` flag — wipe entire history file
-- [ ] `--forget <port>` flag — remove a single port entry
+- [ ] `bin/port-lister.js` — `--history` sub-command that prints the formatted table
+- [ ] `--history --json` flag — output raw JSON for scripting
+- [ ] `--history --clear` flag — wipe entire history file
+- [ ] `--history --forget <port>` flag — remove a single port entry
 - [ ] Deduplicate entries — keep only the most recent entry per port
 - [ ] Cap history at 50 entries to keep file size small
 
-### Integration with auto-port
+### Integration with port-lister
 
 ```js
 // runner.js — write history entry after successful spawn
-import { writeEntry } from './store.js'
-import { detectProjectName } from './history.js'
+import { writeEntry } from "./store.js";
+import { detectProjectName } from "./history.js";
 
 export function run(command, args, port) {
   const child = spawn(command, args, {
-    stdio: 'inherit',
+    stdio: "inherit",
     env: { ...process.env, PORT: String(port) },
     shell: true,
-  })
+  });
 
   // record to history once process starts
   writeEntry({
@@ -462,19 +492,21 @@ export function run(command, args, port) {
     pid: child.pid,
     startedAt: new Date().toISOString(),
     lastSeenAt: new Date().toISOString(),
-  })
+  });
 
-  process.on('SIGINT', () => child.kill('SIGINT'))
-  return child
+  process.on("SIGINT", () => child.kill("SIGINT"));
+  return child;
 }
 ```
 
 ---
 
 ## Phase 5 — Polish, Tests & Publish
+
 **Timeline: Week 3**
 
 ### Goals
+
 Production-ready package with tests, cross-platform CI, and published to npm.
 
 ### Tasks
@@ -491,26 +523,32 @@ Production-ready package with tests, cross-platform CI, and published to npm.
 ### Programmatic API
 
 ```js
-import { findFreePort, whoHasPort, detectFramework, autoPort, portHistory } from 'auto-port'
+import {
+  findFreePort,
+  whoHasPort,
+  detectFramework,
+  autoPort,
+  portHistory,
+} from "port-lister";
 
 // find next free port starting from 3000
-const port = await findFreePort(3000)
+const port = await findFreePort(3000);
 // → 3001
 
 // find what process is on a port
-const proc = await whoHasPort(3000)
+const proc = await whoHasPort(3000);
 // → { pid: 4521, name: 'node', cmd: 'node server.js' }
 
 // detect framework from cwd
-const fw = detectFramework(pkg)
+const fw = detectFramework(pkg);
 // → { name: 'Vite', strategy: 'env', portVar: 'VITE_PORT', default: 5173 }
 
 // read port history
-const history = portHistory.read()
+const history = portHistory.read();
 // → [{ port: 3000, project: 'my-blog', lastSeenAt: '...', alive: true }, ...]
 
 // full auto — detect framework, resolve port, inject correctly, spawn, record history
-await autoPort('npm run dev', { port: 3000 })
+await autoPort("npm run dev", { port: 3000 });
 ```
 
 ### CI Matrix
@@ -529,15 +567,25 @@ strategy:
 
 ```json
 {
-  "name": "auto-port",
+  "name": "port-lister",
   "version": "0.1.0",
   "type": "module",
   "bin": {
-    "auto-port":    "./bin/auto-port.js",
-    "port-history": "./bin/port-history.js"
+    "port-lister": "./bin/port-lister.js"
   },
   "files": ["src", "bin"],
-  "keywords": ["port", "conflict", "history", "cli", "dev", "localhost", "frontend", "backend", "vite", "express"],
+  "keywords": [
+    "port",
+    "conflict",
+    "history",
+    "cli",
+    "dev",
+    "localhost",
+    "frontend",
+    "backend",
+    "vite",
+    "express"
+  ],
   "engines": { "node": ">=18" }
 }
 ```
@@ -546,23 +594,23 @@ strategy:
 
 ## Milestones
 
-| Milestone | Target |
-|---|---|
-| Core engine working locally | End of Week 1 |
-| CLI usable with `npx` | End of Week 1 |
-| All frontend frameworks supported | End of Week 2 |
-| All backend frameworks supported | End of Week 2 |
-| `port-history` recording & display working | End of Week 2 |
-| All tests passing on 3 platforms | End of Week 3 |
-| Published to npm | End of Week 3 |
+| Milestone                                 | Target        |
+| ----------------------------------------- | ------------- |
+| Core engine working locally               | End of Week 1 |
+| CLI usable with `npx`                     | End of Week 1 |
+| All frontend frameworks supported         | End of Week 2 |
+| All backend frameworks supported          | End of Week 2 |
+| `port-lister` recording & display working | End of Week 2 |
+| All tests passing on 3 platforms          | End of Week 3 |
+| Published to npm                          | End of Week 3 |
 
 ---
 
 ## Future Ideas (Post v1)
 
-- `auto-port list` — show all ports currently in use across your machine
+- `port-lister list` — show all ports currently in use across your machine
 - VS Code extension — highlight port conflicts inline in terminal
-- Config file support (`.autoportrc`) — set preferred port ranges per project
+- Config file support (`.portlisterrc`) — set preferred port ranges per project
 - Proxy mode — forward traffic from old port to new port transparently
-- `port-history --watch` — live updating view of active dev servers
+- `port-lister --watch` — live updating view of active dev servers
 - Dashboard: browser UI showing all running dev servers from history

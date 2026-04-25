@@ -4,26 +4,105 @@ import { findFreePort } from "../src/finder.js";
 import { whoHasPort } from "../src/whohas.js";
 import { detectFramework, loadPackageJson } from "../src/framework.js";
 import { run } from "../src/runner.js";
+import { readHistory, clearHistory, forgetPort } from "../src/store.js";
+import { isProcessAlive, relativeTime } from "../src/history.js";
 
 const args = process.argv.slice(2);
 
+// ── port-lister --history [--json | --clear | --forget <port>] ──────────────
+if (args[0] === "--history") {
+  const rest = args.slice(1);
+
+  if (rest.includes("--clear")) {
+    clearHistory();
+    console.log("Port history cleared.");
+    process.exit(0);
+  }
+
+  if (rest.includes("--forget")) {
+    const idx = rest.indexOf("--forget");
+    const port = parseInt(rest[idx + 1], 10);
+    if (!port) {
+      console.error("Usage: port-lister --history --forget <port>");
+      process.exit(1);
+    }
+    forgetPort(port);
+    console.log(`Forgot port ${port}.`);
+    process.exit(0);
+  }
+
+  const history = readHistory();
+
+  if (!history.length) {
+    console.log("No port history yet.");
+    process.exit(0);
+  }
+
+  const enriched = history.map((e) => ({
+    ...e,
+    alive: isProcessAlive(e.pid),
+    ago: relativeTime(e.lastSeenAt),
+  }));
+
+  if (rest.includes("--json")) {
+    console.log(JSON.stringify(enriched, null, 2));
+    process.exit(0);
+  }
+
+  const portW = Math.max(4, ...enriched.map((e) => String(e.port).length));
+  const projW = Math.max(7, ...enriched.map((e) => (e.project ?? "").length));
+  const timeW = Math.max(9, ...enriched.map((e) => e.ago.length));
+
+  const header = [
+    "PORT".padEnd(portW),
+    "PROJECT".padEnd(projW),
+    "LAST USED".padEnd(timeW),
+    "STATUS",
+  ].join("  ");
+
+  console.log(header);
+  console.log("-".repeat(header.length));
+
+  for (const e of enriched) {
+    const status = e.alive ? "● still running" : "○ stopped";
+    console.log(
+      [
+        String(e.port).padEnd(portW),
+        (e.project ?? "").padEnd(projW),
+        e.ago.padEnd(timeW),
+        status,
+      ].join("  "),
+    );
+  }
+
+  process.exit(0);
+}
+
+// ── port-lister [options] <command> [command-args...] ───────────────────────
 if (!args.length || args[0] === "--help" || args[0] === "-h") {
-  console.log(`Usage: auto-port [options] <command> [command-args...]
+  console.log(`Usage: port-lister [options] <command> [command-args...]
 
 Options:
   --port <n>       Target port (default: framework default or 3000)
   --range <a-b>    Search range for a free port
   --kill           Kill the conflicting process instead of shifting
-  --quiet          Suppress auto-port output
+  --quiet          Suppress port-lister output
   --save           Update .env with the resolved port
   -h, --help       Show this help
 
+History:
+  --history                    Show port history table
+  --history --json             Machine-readable JSON
+  --history --clear            Delete all history entries
+  --history --forget <port>    Remove a single entry by port
+
 Examples:
-  auto-port npm start
-  auto-port vite
-  auto-port node server.js
-  auto-port --port 4000 next dev
-  auto-port python manage.py runserver`);
+  port-lister npm start
+  port-lister vite
+  port-lister node server.js
+  port-lister --port 4000 next dev
+  port-lister python manage.py runserver
+  port-lister --history`);
   process.exit(0);
 }
 
@@ -56,7 +135,9 @@ for (let i = 0; i < args.length; i++) {
 }
 
 if (!cmdArgs.length) {
-  console.error("Error: no command provided. Run auto-port --help for usage.");
+  console.error(
+    "Error: no command provided. Run port-lister --help for usage.",
+  );
   process.exit(1);
 }
 
@@ -78,9 +159,9 @@ let port = startPort;
 if (busy) {
   const owner = whoHasPort(startPort);
   if (owner) {
-    warn(`⚠  Port ${startPort} in use → ${owner.name} (pid ${owner.pid})`);
+    warn(`Port ${startPort} in use → ${owner.name} (pid ${owner.pid})`);
   } else {
-    warn(`⚠  Port ${startPort} in use`);
+    warn(`Port ${startPort} in use`);
   }
 
   if (kill && owner) {
@@ -103,8 +184,8 @@ if (save) {
 }
 
 if (!quiet) {
-  info(`✅  Starting on port ${port}`);
-  info(`🚀  http://localhost:${port}`);
+  info(`Starting on port ${port}`);
+  info(`http://localhost:${port}`);
 }
 
 const child = run(command, restArgs, port, framework, { quiet });

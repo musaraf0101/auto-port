@@ -37,17 +37,17 @@ export async function autoPort(commandLine, { port: preferredPort } = {}) {
     const owner = whoHasPort(startPort);
     if (owner) {
       process.stderr.write(
-        `⚠  Port ${startPort} in use → ${owner.name} (pid ${owner.pid})\n`,
+        `Port ${startPort} in use → ${owner.name} (pid ${owner.pid})\n`,
       );
     } else {
-      process.stderr.write(`⚠  Port ${startPort} in use\n`);
+      process.stderr.write(`Port ${startPort} in use\n`);
     }
-    process.stderr.write(`✓  Finding next available port...\n`);
+    process.stderr.write(`Finding next available port...\n`);
     port = await findFreePort(startPort + 1);
   }
 
-  process.stderr.write(`✅  Starting on port ${port}\n`);
-  process.stderr.write(`🚀  http://localhost:${port}\n`);
+  process.stderr.write(`Starting on port ${port}\n`);
+  process.stderr.write(`http://localhost:${port}\n`);
 
   return run(command, cmdArgs, port, framework);
 }

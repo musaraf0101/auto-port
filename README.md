@@ -1,4 +1,4 @@
-# auto-port
+# port-lister
 
 > npm package · fully local · zero runtime dependencies
 
@@ -19,7 +19,7 @@ Automatically detects port conflicts and starts your app on the next available p
 2. **Identify** — looks up which process owns the busy port (`whohas`)
 3. **Find** — scans upward from the next port until a free one is found
 4. **Inject** — passes the resolved port to your command via the right mechanism for your framework (env var or CLI flag)
-5. **Record** — writes the session (port, project name, PID) to `~/.auto-port/history.json`
+5. **Record** — writes the session (port, project name, PID) to `~/.port-lister/history.json`
 6. **Spawn** — runs your original command with the corrected port, forwarding all output
 
 ---
@@ -35,27 +35,27 @@ Automatically detects port conflicts and starts your app on the next available p
 ### Global install (recommended)
 
 ```bash
-npm install -g auto-port
+npm install -g port-lister
 ```
 
 Then use it anywhere:
 
 ```bash
-auto-port npm start
-auto-port vite
-auto-port node server.js
+port-lister npm start
+port-lister vite
+port-lister node server.js
 ```
 
 ### Without installing (one-off)
 
 ```bash
-npx auto-port <command>
+npx port-lister <command>
 ```
 
 ### Local project install
 
 ```bash
-npm install --save-dev auto-port
+npm install --save-dev port-lister
 ```
 
 Add to `package.json` scripts:
@@ -63,62 +63,64 @@ Add to `package.json` scripts:
 ```json
 {
   "scripts": {
-    "dev": "auto-port vite",
-    "start": "auto-port node server.js"
+    "dev": "port-lister vite",
+    "start": "port-lister node server.js"
   }
 }
 ```
 
 ---
 
-## CLI: `auto-port`
+## CLI: `port-lister`
 
 ```
-auto-port [options] <command> [command-args...]
+port-lister [options] <command> [command-args...]
+port-lister --history [--json | --clear | --forget <port>]
 ```
 
 ### Options
 
-| Flag              | Description                                           |
-| ----------------- | ----------------------------------------------------- |
-| `--port <n>`      | Target port to start from (default: framework default or `3000`) |
-| `--range <a-b>`   | Restrict the search to this port range (e.g. `3000-3010`) |
-| `--kill`          | Kill the conflicting process instead of shifting to the next port |
-| `--quiet`         | Suppress auto-port output; only show your app's output |
-| `--save`          | Write the resolved port back to `.env`                |
-| `-h, --help`      | Show help                                             |
+| Flag            | Description                                                       |
+| --------------- | ----------------------------------------------------------------- |
+| `--port <n>`    | Target port to start from (default: framework default or `3000`)  |
+| `--range <a-b>` | Restrict the search to this port range (e.g. `3000-3010`)         |
+| `--kill`        | Kill the conflicting process instead of shifting to the next port |
+| `--quiet`       | Suppress port-lister output; only show your app's output          |
+| `--save`        | Write the resolved port back to `.env`                            |
+| `--history`     | Show port history (see [History](#history) section)               |
+| `-h, --help`    | Show help                                                         |
 
 ### Examples
 
 ```bash
 # Frontend frameworks
-auto-port npm start                      # Create React App  (PORT=3001)
-auto-port vite                           # Vite              (VITE_PORT=5174)
-auto-port next dev                       # Next.js           (PORT=3001)
-auto-port ng serve                       # Angular           (--port 4201)
-auto-port npm run dev                    # SvelteKit / Nuxt / Remix
+port-lister npm start                      # Create React App  (PORT=3001)
+port-lister vite                           # Vite              (VITE_PORT=5174)
+port-lister next dev                       # Next.js           (PORT=3001)
+port-lister ng serve                       # Angular           (--port 4201)
+port-lister npm run dev                    # SvelteKit / Nuxt / Remix
 
 # Backend
-auto-port node server.js                 # Express / plain Node
-auto-port python manage.py runserver     # Django
-auto-port go run main.go                 # Go
+port-lister node server.js                 # Express / plain Node
+port-lister python manage.py runserver     # Django
+port-lister go run main.go                 # Go
 
 # With flags
-auto-port --port 4000 yarn dev           # start search from 4000
-auto-port --range 3000-3010 node app.js  # only consider ports 3000–3010
-auto-port --kill npm run dev             # kill the owner of port 3000 instead of shifting
-auto-port --quiet vite                   # hide auto-port banner
-auto-port --save vite                    # write resolved port to .env
+port-lister --port 4000 yarn dev           # start search from 4000
+port-lister --range 3000-3010 node app.js  # only consider ports 3000–3010
+port-lister --kill npm run dev             # kill the owner of port 3000 instead of shifting
+port-lister --quiet vite                   # hide port-lister banner
+port-lister --save vite                    # write resolved port to .env
 ```
 
 ---
 
-## CLI: `port-history`
+## History
 
-Every time `auto-port` starts a process it records the port, project name, and PID to `~/.auto-port/history.json`. Use `port-history` to inspect or manage that log.
+Every time `port-lister` starts a process it records the port, project name, and PID to `~/.port-lister/history.json`. Use `--history` to inspect or manage that log.
 
 ```bash
-port-history
+port-lister --history
 ```
 
 ```
@@ -131,39 +133,40 @@ PORT   PROJECT          LAST USED    STATUS
 
 ### Options
 
-| Flag                 | Description                         |
-| -------------------- | ----------------------------------- |
-| `--json`             | Print history as JSON               |
-| `--clear`            | Delete all history entries          |
-| `--forget <port>`    | Remove a single entry by port       |
+| Flag                        | Description                   |
+| --------------------------- | ----------------------------- |
+| `--history`                 | Show port history table       |
+| `--history --json`          | Print history as JSON         |
+| `--history --clear`         | Delete all history entries    |
+| `--history --forget <port>` | Remove a single entry by port |
 
 ### Examples
 
 ```bash
-port-history                  # pretty table
-port-history --json           # machine-readable JSON
-port-history --clear          # wipe everything
-port-history --forget 8080    # remove the entry for port 8080
+port-lister --history                      # pretty table
+port-lister --history --json               # machine-readable JSON
+port-lister --history --clear              # wipe everything
+port-lister --history --forget 8080        # remove the entry for port 8080
 ```
 
 ---
 
 ## Framework Support
 
-`auto-port` auto-detects your framework from `package.json` and chooses the right injection strategy.
+`port-lister` auto-detects your framework from `package.json` and chooses the right injection strategy.
 
-| Framework                    | Type       | Port injection       | Default port |
-| ---------------------------- | ---------- | -------------------- | ------------ |
-| Express / Fastify / plain Node | Backend  | `PORT` env var       | 3000         |
-| Create React App             | Frontend   | `PORT` env var       | 3000         |
-| Next.js                      | Full-stack | `PORT` env var       | 3000         |
-| Remix                        | Full-stack | `PORT` env var       | 3000         |
-| SvelteKit                    | Full-stack | `PORT` env var       | 5173         |
-| Vite                         | Frontend   | `VITE_PORT` env var  | 5173         |
-| Nuxt                         | Full-stack | `NUXT_PORT` env var  | 3000         |
-| Angular                      | Frontend   | `--port` CLI flag    | 4200         |
-| Webpack DevServer            | Frontend   | `--port` CLI flag    | 8080         |
-| Django / Go / Rust / other   | Backend    | `PORT` env var       | 3000         |
+| Framework                      | Type       | Port injection      | Default port |
+| ------------------------------ | ---------- | ------------------- | ------------ |
+| Express / Fastify / plain Node | Backend    | `PORT` env var      | 3000         |
+| Create React App               | Frontend   | `PORT` env var      | 3000         |
+| Next.js                        | Full-stack | `PORT` env var      | 3000         |
+| Remix                          | Full-stack | `PORT` env var      | 3000         |
+| SvelteKit                      | Full-stack | `PORT` env var      | 5173         |
+| Vite                           | Frontend   | `VITE_PORT` env var | 5173         |
+| Nuxt                           | Full-stack | `NUXT_PORT` env var | 3000         |
+| Angular                        | Frontend   | `--port` CLI flag   | 4200         |
+| Webpack DevServer              | Frontend   | `--port` CLI flag   | 8080         |
+| Django / Go / Rust / other     | Backend    | `PORT` env var      | 3000         |
 
 ---
 
@@ -172,7 +175,7 @@ port-history --forget 8080    # remove the entry for port 8080
 Install as a dependency:
 
 ```bash
-npm install auto-port
+npm install port-lister
 ```
 
 Import individual utilities or the high-level `autoPort` function:
@@ -186,7 +189,7 @@ import {
   loadPackageJson,
   autoPort,
   portHistory,
-} from "auto-port";
+} from "port-lister";
 ```
 
 ### `isPortBusy(port: number): Promise<boolean>`

@@ -2,7 +2,7 @@ import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
-const STORE_DIR = join(homedir(), ".auto-port");
+const STORE_DIR = join(homedir(), ".port-lister");
 const STORE_FILE = join(STORE_DIR, "history.json");
 const MAX_ENTRIES = 50;
 
