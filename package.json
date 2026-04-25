@@ -4,8 +4,8 @@
   "description": "Automatically detect port conflicts and start your app on the next available port",
   "type": "module",
   "bin": {
-    "auto-port": "./bin/auto-port.js",
-    "port-history": "./bin/port-history.js"
+    "auto-port": "bin/auto-port.js",
+    "port-history": "bin/port-history.js"
   },
   "files": [
     "src",
