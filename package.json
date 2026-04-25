@@ -1,6 +1,6 @@
 {
   "name": "port-lister",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Automatically detect port conflicts and start your app on the next available port",
   "type": "module",
   "bin": {
